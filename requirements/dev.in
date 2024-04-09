@@ -1,0 +1,6 @@
+-r tests.in
+mypy
+pip-tools
+pre-commit
+ruff
+tox
