@@ -1,0 +1,23 @@
+name: Release
+
+on:
+  workflow_call
+  
+jobs:
+
+  gh_release:
+    name: GH release
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # 4.1.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+      - name: Python Semantic Release
+        uses: python-semantic-release/python-semantic-release@c82bd673c30da94a02e039963c8c4c8a51758096 # 9.1.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          root_options: "-vv"
