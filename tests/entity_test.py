@@ -1,14 +1,15 @@
 import pytest
 
-from workfloz.cluster import _Cluster
+from workfloz.cluster import Cluster
 from workfloz.cluster import getcluster
 from workfloz.cluster import Job
 from workfloz.cluster import setcluster
 from workfloz.cluster import Task
-from workfloz.component import _Component
-from workfloz.entity import _Entity
-from workfloz.entity import _ExecutableEntity
+from workfloz.component import Component
 from workfloz.entity import compiled
+from workfloz.entity import Entity
+from workfloz.entity import ExecutableMixin
+from workfloz.entity import NamedMixin
 from workfloz.entity import result
 from workfloz.exceptions import WorkflowCompilationError
 from workfloz.exceptions import WorkflowDefinitionError
@@ -16,15 +17,21 @@ from workfloz.exceptions import WorkflowExecutionError
 
 
 class TestEntity:
-    E1: type(_Entity)
-    E2: type(_Entity)
-    E3: type(_Entity)
+    def test_name(self):
+        e = Entity()
+        assert len(e._name_) == 36  # uuid
+
+
+class TestNamedEntity:
+    E1: type[Entity]
+    E2: type[Entity]
+    E3: type[Entity]
 
     def setup_method(self, method):
-        class E1(_Entity):
+        class E1(NamedMixin, Entity):
             pass
 
-        class E2(_Entity):
+        class E2(NamedMixin, Entity):
             pass
 
         class E3(E2):
@@ -35,7 +42,7 @@ class TestEntity:
         type(self).E3 = E3
 
     def teardown_method(self, method):
-        _Entity._instances_ = {}
+        NamedMixin._instances_ = {}
 
     def test_name(self):
         e1 = self.E1("e1")
@@ -62,19 +69,19 @@ class TestEntity:
         assert self.E2("e3") is e3
 
 
-class TestExecutableEntity(TestEntity):
-    E1: _ExecutableEntity
-    E3: _ExecutableEntity
+class TestExecutableEntity(TestNamedEntity):
+    E1: type[Entity]
+    E3: type[Entity]
 
     def setup_method(self, method):
-        class E1(_ExecutableEntity):
+        class E1(NamedMixin, ExecutableMixin, Entity):
             def _compile_(self):
                 return self
 
             def _run_(self):
                 return self._compiled_
 
-        class E3(_ExecutableEntity, self.E2):
+        class E3(self.E2, ExecutableMixin, Entity):
             value = 1
 
             def _compile_(self):
@@ -85,6 +92,10 @@ class TestExecutableEntity(TestEntity):
 
         type(self).E1 = E1
         type(self).E3 = E3
+
+    def test_abstract_methods(self):
+        assert "_run_" in ExecutableMixin.__abstractmethods__
+        assert "_compile_" in ExecutableMixin.__abstractmethods__
 
     def test_compiling_executable_entity(self):
         e3 = self.E3("e3")
@@ -103,7 +114,7 @@ class TestExecutableEntity(TestEntity):
             e3 = self.E3("e3")
             e3.run()
 
-        class E4(_ExecutableEntity):
+        class E4(ExecutableMixin, NamedMixin, Entity):
             def _compile_(self):
                 return self
 
@@ -149,17 +160,17 @@ class TestExecutableEntity(TestEntity):
 
 
 class TestCluster(TestExecutableEntity):
-    E1: type[_Cluster]
-    C: type[_Component]
+    E1: type[Cluster]
+    C: type[Component]
 
     def setup_method(self, method):
-        class E1(_Cluster):
+        class E1(Cluster):
             pass
 
-        class E3(self.E3, _Cluster):
+        class E3(self.E3, Cluster):
             pass
 
-        class C(_Component):
+        class C(Component):
             def _compile_(self):
                 return self
 
@@ -261,10 +272,10 @@ class TestCluster(TestExecutableEntity):
         assert result(b) == b
 
     def test_3_level_hierarchy_running(self):
-        class E4(_Cluster):
+        class E4(Cluster):
             pass
 
-        class C2(_Component):
+        class C2(Component):
             def __init__(self, name, value: str):
                 super().__init__(name, value)
                 self.value = value
@@ -291,7 +302,7 @@ class TestJobTaskComponent:
     def setup_method(self):
         setcluster(None)
 
-        class C(_Component):
+        class C(Component):
             def _compile_(self):
                 return 1
 
@@ -301,7 +312,7 @@ class TestJobTaskComponent:
         self.C = C
 
     def teardown_method(self, method):
-        _Entity._instances_ = {}
+        NamedMixin._instances_ = {}
 
     def test_str(self):
         job = Job("job")
@@ -323,7 +334,7 @@ class TestJobTaskComponent:
             WorkflowDefinitionError,
             match="A Job cannot be created inside another cluster.",
         ):
-            with _Cluster("c"):
+            with Cluster("c"):
                 with Job("job"):
                     """"""
 

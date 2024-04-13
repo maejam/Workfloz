@@ -5,15 +5,17 @@ from contextlib import ContextDecorator
 from types import TracebackType
 from typing import Any
 
-from workfloz.entity import _ExecutableEntity
+from workfloz.entity import Entity
+from workfloz.entity import ExecutableMixin
+from workfloz.entity import NamedMixin
 from workfloz.exceptions import WorkflowDefinitionError
 
-_cluster: contextvars.ContextVar[_Cluster | None] = contextvars.ContextVar(
+_cluster: contextvars.ContextVar[Cluster | None] = contextvars.ContextVar(
     "cluster", default=None
 )
 
 
-def getcluster() -> _Cluster | None:
+def getcluster() -> Cluster | None:
     """Return the active cluster.
 
     Returns:
@@ -22,7 +24,7 @@ def getcluster() -> _Cluster | None:
     return _cluster.get()
 
 
-def setcluster(cluster: _Cluster | None) -> contextvars.Token[_Cluster | None]:
+def setcluster(cluster: Cluster | None) -> contextvars.Token[Cluster | None]:
     """Set the active cluster.
 
     Args:
@@ -35,17 +37,17 @@ def setcluster(cluster: _Cluster | None) -> contextvars.Token[_Cluster | None]:
 
     Raises:
         WorkflowDefinitionError: If an attempt is made to set the
-            active cluster to something other than a `_Cluster` object
+            active cluster to something other than a `Cluster` object
             or `None`.
     """
-    if not isinstance(cluster, _Cluster | type(None)):
+    if not isinstance(cluster, Cluster | type(None)):
         raise WorkflowDefinitionError(
             "Only a Cluster object or 'None' can be set as an active cluster."
         )
     return _cluster.set(cluster)
 
 
-def resetcluster(token: contextvars.Token[_Cluster | None]) -> None:
+def resetcluster(token: contextvars.Token[Cluster | None]) -> None:
     """Reset the active cluster to its previous state.
 
     Args:
@@ -54,7 +56,7 @@ def resetcluster(token: contextvars.Token[_Cluster | None]) -> None:
     _cluster.reset(token)
 
 
-class _Cluster(_ExecutableEntity, ContextDecorator):
+class Cluster(NamedMixin, ExecutableMixin, Entity, ContextDecorator):
     """An entity that can contain other executable entities.
 
     Args:
@@ -67,9 +69,9 @@ class _Cluster(_ExecutableEntity, ContextDecorator):
 
     def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
         super().__init__(name, *args, **kwargs)
-        self._entities_: list[_ExecutableEntity] = []
+        self._entities_: list[ExecutableMixin] = []
 
-    def __enter__(self) -> _Cluster:
+    def __enter__(self) -> Cluster:
         self._enter_()
         cluster = getcluster()
         if cluster:
@@ -108,7 +110,7 @@ class _Cluster(_ExecutableEntity, ContextDecorator):
     ) -> None:
         """Define additional logic to be run when exiting a cluster."""
 
-    def _compile_(self) -> _Cluster:
+    def _compile_(self) -> Cluster:
         """The custom compilation logic for clusters.
 
         Calling `compile` on a cluster will compile all its member
@@ -135,7 +137,7 @@ class _Cluster(_ExecutableEntity, ContextDecorator):
         return self._compiled_
 
 
-class Job(_Cluster):
+class Job(Cluster):
     """Top level cluster."""
 
     def _enter_(self) -> None:
@@ -151,7 +153,7 @@ class Job(_Cluster):
             )
 
 
-class Task(_Cluster):
+class Task(Cluster):
     """Low level cluster."""
 
     def _enter_(self) -> None:

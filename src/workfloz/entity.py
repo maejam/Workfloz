@@ -1,20 +1,39 @@
 from __future__ import annotations
 
+from abc import ABC
 from abc import ABCMeta
 from abc import abstractmethod
 from typing import Any
+from uuid import uuid4
 
 from workfloz.exceptions import WorkflowCompilationError
 from workfloz.exceptions import WorkflowExecutionError
 
 
-class _EntityMeta(ABCMeta):
-    def __call__(cls, name: str, *args: Any, **kwargs: Any) -> _Entity:
+class Entity(ABC):  # noqa: B024
+    """The base class for all entities.
+
+    All entities have a name identifier. Those inheriting from
+    `NamedMixin` will have a name given by the user upon
+    instantiation. Others will be attributed a uuid name.
+    Entity inherits from ABC, so does all the Mixin classes, in order
+    to simplify MRO consistency.
+    """
+
+    def __init__(self, name: str | None = None, *args: Any, **kwargs: Any) -> None:
+        self._name_ = str(uuid4()) if name is None else str(name)
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}: {self._name_}"
+
+
+class NamedMixinMeta(ABCMeta):
+    def __call__(cls, name: str, *args: Any, **kwargs: Any) -> NamedMixin:
         try:
-            instance: _Entity = _Entity._instances_[name]
+            instance: NamedMixin = NamedMixin._instances_[name]
             if not isinstance(instance, cls):
                 raise TypeError(
-                    f"The registered instance with name {instance._name_} "
+                    f"The registered instance with name {name} "
                     f"is not compatible with type {cls.__name__}."
                 )
             return instance
@@ -23,13 +42,14 @@ class _EntityMeta(ABCMeta):
             return instance
 
 
-class _Entity(metaclass=_EntityMeta):
-    """The base class for all entities.
+class NamedMixin(metaclass=NamedMixinMeta):
+    """A Mixin class for registering named entities.
 
-    Entities are identified by name, and instantiating an Entity with
-    an already existing name will return the same object, provided the
-    class used for instantiation is the same (or a super-class) as the
-    registered object class.
+    NamedEntities are identified by a user-given name, and
+    instantiating a NamedEntity with an already existing name will
+    return the same object, provided the class used for instantiation
+    is the same as the registered object class (or a super-class
+    thereof).
 
     Args:
         name: The name for this Entity.
@@ -44,18 +64,15 @@ class _Entity(metaclass=_EntityMeta):
             compatible with the registered instance.
     """
 
-    _instances_: dict[str, _Entity] = {}
+    _instances_: dict[str, NamedMixin] = {}
 
     def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
-        self._name_ = str(name)
-        _Entity._instances_[name] = self
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__}: {self._name_}"
+        super().__init__(name, *args, **kwargs)  # type: ignore[call-arg]
+        NamedMixin._instances_[name] = self
 
 
-class _ExecutableEntity(_Entity):
-    """Interface for Entitites that can be executed.
+class ExecutableMixin(ABC):
+    """A Mixin class for Entities that can be executed.
 
     Attributes:
         _compiled_: The state of the entity after compilation.
@@ -112,7 +129,7 @@ class _ExecutableEntity(_Entity):
         except AttributeError as e:
             if e.name == "_compiled_":
                 raise WorkflowExecutionError(
-                    f"The entity '{self._name_}' is not compiled yet. "
+                    f"The entity '{self._name_}' is not compiled yet. "  # type: ignore [attr-defined]
                     "Run the 'compile' method on it first. "
                     "Or use the 'start' method to compile and run in one step."
                 ) from None
@@ -125,7 +142,7 @@ class _ExecutableEntity(_Entity):
         self.run()
 
 
-def compiled(entity: _ExecutableEntity) -> Any:
+def compiled(entity: ExecutableMixin) -> Any:
     """Use on an entity to retrieve its compiled state.
 
     Returns:
@@ -136,7 +153,7 @@ def compiled(entity: _ExecutableEntity) -> Any:
         WorkflowCompilationError: If the `_compiled_` attribute is not
             present on the entity.
     """
-    if not isinstance(entity, _ExecutableEntity):
+    if not isinstance(entity, ExecutableMixin):
         raise TypeError(
             "This object is not an executable entity. You can't call 'compiled' on it."
         )
@@ -144,13 +161,13 @@ def compiled(entity: _ExecutableEntity) -> Any:
         return entity._compiled_
     except AttributeError as e:
         raise WorkflowCompilationError(
-            f"'{entity._name_}' has not been compiled yet. "
+            f"'{entity._name_}' has not been compiled yet. "  # type: ignore [attr-defined]
             "Call the 'compile' or 'start' method on it before.",
             e.obj,
         ) from None
 
 
-def result(entity: _Entity) -> Any:
+def result(entity: Entity) -> Any:
     """Use on an entity to retrieve the result after its execution.
 
     Returns:
@@ -161,7 +178,7 @@ def result(entity: _Entity) -> Any:
         WorkflowExecutionError: If the `_result_` attribute cannot be
             found on the entity.
     """
-    if not isinstance(entity, _ExecutableEntity):
+    if not isinstance(entity, ExecutableMixin):
         raise TypeError(
             "This object is not an executable entity. You can't call 'result' on it."
         )
