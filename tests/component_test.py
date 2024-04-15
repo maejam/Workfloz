@@ -114,7 +114,14 @@ class TestActionContainer(TestAction):
         type(self).a1 = ac.meth1
         type(self).a2 = ac.meth2
         type(self).abstract = Abstract("abstract")
+        self.AC = AC
         setcluster(None)
+
+    def test_set_attributes_on_instantiation(self):
+        ac2 = self.AC("ac2", test=1)
+        assert ac2.test == 1
+        with pytest.raises(TypeError):
+            ac3 = self.AC("ac3", b="string")
 
     def test_bind_args_ActionContainer_attributes(self):
         self.ac.x = 1

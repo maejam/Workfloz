@@ -200,6 +200,11 @@ class ActionContainer(NamedMixin, Entity):
     (i.e. `i.m is i.m` returns `False`).
     """
 
+    def __init__(self, name: str, **kwargs: Any) -> None:
+        super().__init__(name)
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
     def __getattribute__(self, name: str) -> Any:
         value = super().__getattribute__(name)
         if (
