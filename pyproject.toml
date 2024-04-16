@@ -32,6 +32,7 @@ build-backend = "flit_core.buildapi"
 include = [
     "requirements/",
     "tests/",
+    "examples/"
 ]
 
 [tool.pytest.ini_options]
