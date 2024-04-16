@@ -17,8 +17,6 @@ jobs:
           - {name: 'Mac', python: '3.12', os: macos-latest, tox: py312}
           - {name: '3.11', python: '3.11', os: ubuntu-latest, tox: py311}
           - {name: '3.10', python: '3.10', os: ubuntu-latest, tox: py310}
-          - {name: '3.9', python: '3.9', os: ubuntu-latest, tox: py39}
-          - {name: '3.8', python: '3.8', os: ubuntu-latest, tox: py38}
           - {name: 'Typing', python: '3.12', os: ubuntu-latest, tox: typing}
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # 4.1.1

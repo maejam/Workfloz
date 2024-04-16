@@ -30,6 +30,7 @@ build-backend = "flit_core.buildapi"
 
 [tool.flit.sdist]
 include = [
+    "src/",
     "requirements/",
     "tests/",
     "examples/"
@@ -91,7 +92,7 @@ major_on_zero = false
 version_toml = ["pyproject.toml:project.version"]
 build_command = """
     python -m pip install flit~=3.9
-    flit build
+    flit build --no-use-vcs
 """
 
 [tool.semantic_release.branches.main]

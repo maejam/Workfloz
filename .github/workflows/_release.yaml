@@ -5,19 +5,36 @@ on:
   
 jobs:
 
-  gh_release:
-    name: GH release
+  release:
+    name: Release
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: write
+
     steps:
+
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # 4.1.1
         with:
           fetch-depth: 0
           ref: ${{ github.ref_name }}
+            
       - name: Python Semantic Release
-        uses: python-semantic-release/python-semantic-release@c82bd673c30da94a02e039963c8c4c8a51758096 # 9.1.1
+        id: release
+        uses: python-semantic-release/python-semantic-release@421bb5003074aee269297671d487331b87f732ea # 9.4.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           root_options: "-vv"
+
+      - name: Publish to PyPI
+        if: ${{ steps.release.outputs.released }} == 'true'
+        uses: pypa/gh-action-pypi-publish@81e9d935c883d0b210363ab89cf05f3894778450 # 1.8
+        with:
+          verbose: true
+
+      - name: Publish to GitHub Release
+        uses: python-semantic-release/upload-to-gh-release@main
+        if: ${{ steps.release.outputs.released }} == 'true'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.release.outputs.tag }}
